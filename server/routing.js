@@ -21,16 +21,16 @@ const ERROR_RATE_DISQUALIFY_THRESHOLD = 40;
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function normalizedScore(metricsView) {
-  const latencyScore  = 100 - clamp((metricsView.averageLatencyMs ?? 0) / 20, 0, 100);
-  const successScore  = metricsView.successRate ?? 0;
-  const costScore     = 100 - clamp((metricsView.costPerRequest ?? 1) * 10, 0, 100);
-  const availScore    = metricsView.enabled === false ? 0 : 100;
+  const latencyScore = 100 - clamp((metricsView.averageLatencyMs ?? 0) / 20, 0, 100);
+  const successScore = metricsView.successRate ?? 0;
+  const costScore = 100 - clamp((metricsView.costPerRequest ?? 100) / 2, 0, 100);
+  const availScore = metricsView.enabled === false ? 0 : 100;
   return latencyScore * 0.4 + successScore * 0.3 + costScore * 0.2 + availScore * 0.1;
 }
 
 function getVendorScore(vendor, metricsView, request) {
   if (!metricsView) return 0;
-  
+
   // Support dynamic weight overrides from request requirements (e.g., from Agentic AI)
   let weightScore = vendor.weight ?? 50;
   if (request?.requirements?.weights) {
@@ -39,7 +39,7 @@ function getVendorScore(vendor, metricsView, request) {
       weightScore = override;
     }
   }
-  
+
   return normalizedScore(metricsView) + weightScore * 0.5 - (vendor.priority ?? 1) * 2;
 }
 
@@ -144,7 +144,7 @@ function compareByStrategy(strategy, left, right, metricsMap, request) {
     default:
       return (
         getVendorScore(right, metricsMap.get(right.id ?? right._id?.toString()), request) -
-        getVendorScore(left,  metricsMap.get(left.id  ?? left._id?.toString()), request)
+        getVendorScore(left, metricsMap.get(left.id ?? left._id?.toString()), request)
       );
   }
 }
@@ -162,7 +162,7 @@ function buildWeightedReason(request, selectedVendor, candidates) {
     .map((c) => ({ name: c.vendor.name, score: c.score }))
     .sort((a, b) => b.score - a.score);
 
-  const winner    = ranked.find((r) => r.name === selectedVendor.name) ?? ranked[0];
+  const winner = ranked.find((r) => r.name === selectedVendor.name) ?? ranked[0];
   const runnersUp = ranked.filter((r) => r.name !== selectedVendor.name).slice(0, 2);
   const scoreSummary = ranked.slice(0, 3).map((r) => `${r.name}: ${r.score.toFixed(2)}`).join(", ");
 
@@ -174,14 +174,14 @@ function buildWeightedReason(request, selectedVendor, candidates) {
 }
 
 function buildRoutingReason(request, strategy, selectedVendor, candidates) {
-  if (strategy === "weighted")       return buildWeightedReason(request, selectedVendor, candidates);
-  if (strategy === "priority")       return `${selectedVendor.name} was selected with the best priority (${selectedVendor.priority}) for ${request.capability}.`;
+  if (strategy === "weighted") return buildWeightedReason(request, selectedVendor, candidates);
+  if (strategy === "priority") return `${selectedVendor.name} was selected with the best priority (${selectedVendor.priority}) for ${request.capability}.`;
   if (strategy === "lowest-latency") return `${selectedVendor.name} was selected for lowest latency (${selectedVendor.baseLatencyMs ?? "?"}ms).`;
-  if (strategy === "lowest-cost")    return `${selectedVendor.name} was selected for lowest cost ($${selectedVendor.costPerRequest ?? "?"}).`;
-  if (strategy === "feature-based")  return `${selectedVendor.name} was selected because it supported the required features.`;
-  if (strategy === "health-based")   return `${selectedVendor.name} was selected for the best health and success metrics.`;
-  if (strategy === "failover")       return `${selectedVendor.name} was selected as the first healthy fallback vendor.`;
-  if (strategy === "round-robin")    return `${selectedVendor.name} was selected by round-robin rotation.`;
+  if (strategy === "lowest-cost") return `${selectedVendor.name} was selected for lowest cost (₹${selectedVendor.costPerRequest ?? "?"}).`;
+  if (strategy === "feature-based") return `${selectedVendor.name} was selected because it supported the required features.`;
+  if (strategy === "health-based") return `${selectedVendor.name} was selected for the best health and success metrics.`;
+  if (strategy === "failover") return `${selectedVendor.name} was selected as the first healthy fallback vendor.`;
+  if (strategy === "round-robin") return `${selectedVendor.name} was selected by round-robin rotation.`;
   return `${selectedVendor.name} was selected using the ${strategy} strategy.`;
 }
 
@@ -238,7 +238,7 @@ function simulateVendorResponse(request, vendor) {
       ? (vendor.baseLatencyMs ?? 900)
       : (vendor.metrics.totalLatencyMs ?? 0) / vendor.metrics.requestCount;
 
-  const jitter    = Math.max(50, Math.round(avgLatency * 0.12));
+  const jitter = Math.max(50, Math.round(avgLatency * 0.12));
   const latencyMs = Math.max(120, Math.round(avgLatency + (Math.random() * jitter * 2 - jitter)));
   const timeoutMs = request.requirements?.timeoutMs ?? vendor.timeoutMs ?? 2500;
 
@@ -246,17 +246,17 @@ function simulateVendorResponse(request, vendor) {
     return { latencyMs, response: {}, success: false, failureReason: "timeout exceeded" };
   }
 
-  const requestCount  = vendor.metrics?.requestCount ?? 0;
-  const failureCount  = vendor.metrics?.failureCount ?? 0;
-  const failureRate   = clamp(requestCount === 0 ? 5 : (failureCount / requestCount) * 100, 0, 45);
+  const requestCount = vendor.metrics?.requestCount ?? 0;
+  const failureCount = vendor.metrics?.failureCount ?? 0;
+  const failureRate = clamp(requestCount === 0 ? 5 : (failureCount / requestCount) * 100, 0, 45);
   if (Math.random() * 100 < failureRate) {
     return { latencyMs, response: {}, success: false, failureReason: "vendor returned a transient failure" };
   }
 
   const payload = request.payload;
   if (request.capability === "PAN_VERIFICATION") {
-    const pan       = String(payload.pan ?? "");
-    const name      = String(payload.name ?? "");
+    const pan = String(payload.pan ?? "");
+    const name = String(payload.name ?? "");
     const panStatus = pan.length >= 10 ? "VALID" : "INVALID";
     return {
       latencyMs,
@@ -284,13 +284,13 @@ async function applyMetrics(vendor, latencyMs, success) {
     status: nextStatus,
     recentRequestTimestamps: [...(pruned.recentRequestTimestamps ?? []), Date.now()],
     metrics: {
-      requestCount:        (vendor.metrics?.requestCount  ?? 0) + 1,
-      successCount:        (vendor.metrics?.successCount  ?? 0) + (success ? 1 : 0),
-      failureCount:        (vendor.metrics?.failureCount  ?? 0) + (success ? 0 : 1),
+      requestCount: (vendor.metrics?.requestCount ?? 0) + 1,
+      successCount: (vendor.metrics?.successCount ?? 0) + (success ? 1 : 0),
+      failureCount: (vendor.metrics?.failureCount ?? 0) + (success ? 0 : 1),
       consecutiveFailures,
-      totalLatencyMs:      (vendor.metrics?.totalLatencyMs ?? 0) + latencyMs,
-      lastLatencyMs:       latencyMs,
-      lastRequestAt:       new Date()
+      totalLatencyMs: (vendor.metrics?.totalLatencyMs ?? 0) + latencyMs,
+      lastLatencyMs: latencyMs,
+      lastRequestAt: new Date()
     }
   };
 
@@ -301,17 +301,17 @@ async function applyMetrics(vendor, latencyMs, success) {
 // ─── Main entry point (async) ─────────────────────────────────────────────────
 
 export async function routeRequest(request) {
-  const strategy  = resolveStrategy(request.requirements);
+  const strategy = resolveStrategy(request.requirements);
   const requestId = randomUUID();
-  const ts        = new Date();
+  const ts = new Date();
 
   await appendRequestLog({
     requestId,
-    capability:   request.capability,
-    payload:      request.payload,
+    capability: request.capability,
+    payload: request.payload,
     requirements: request.requirements ?? {},
-    timestamp:    ts,
-    status:       "RECEIVED"
+    timestamp: ts,
+    status: "RECEIVED"
   });
 
   // One DB read — vendors are shared with buildMetricsMap (no double query)
@@ -324,67 +324,67 @@ export async function routeRequest(request) {
     const mv = metricsMap.get(c.vendor.id ?? c.vendor._id?.toString());
     return {
       ...c,
-      score:             getVendorScore(c.vendor, mv, request),
-      eligibilityReasons:getEligibilityDetails(c.vendor, request, mv),
-      metrics:           mv
+      score: getVendorScore(c.vendor, mv, request),
+      eligibilityReasons: getEligibilityDetails(c.vendor, request, mv),
+      metrics: mv
     };
   });
 
   if (candidates.length === 0) {
     await appendRequestLog({
       requestId,
-      capability:   request.capability,
-      payload:      request.payload,
+      capability: request.capability,
+      payload: request.payload,
       requirements: request.requirements ?? {},
-      timestamp:    new Date(),
-      status:       "FAILED",
-      reason:       "No eligible vendor matched the request requirements"
+      timestamp: new Date(),
+      status: "FAILED",
+      reason: "No eligible vendor matched the request requirements"
     });
     return {
-      status:       "FAILED",
-      vendorUsed:   null,
-      routingReason:"No eligible vendor matched the request requirements",
-      error:        "no eligible vendor found"
+      status: "FAILED",
+      vendorUsed: null,
+      routingReason: "No eligible vendor matched the request requirements",
+      error: "no eligible vendor found"
     };
   }
 
   for (const candidate of candidates) {
-    const execution     = simulateVendorResponse(request, candidate.vendor);
+    const execution = simulateVendorResponse(request, candidate.vendor);
     const updatedVendor = await applyMetrics(candidate.vendor, execution.latencyMs, execution.success);
 
     if (execution.success) {
       const routingReason = buildRoutingReason(request, strategy, updatedVendor, candidateSnapshots);
       const successResponse = {
-        status:       "SUCCESS",
-        vendorUsed:   updatedVendor.name,
+        status: "SUCCESS",
+        vendorUsed: updatedVendor.name,
         routingReason,
-        latencyMs:    execution.latencyMs,
-        cost:         updatedVendor.costPerRequest ?? 0,
-        response:     execution.response
+        latencyMs: execution.latencyMs,
+        cost: updatedVendor.costPerRequest ?? 0,
+        response: execution.response
       };
 
       await Promise.all([
         appendRoutingLog({
           requestId,
-          capability:   request.capability,
-          vendorUsed:   updatedVendor.name,
+          capability: request.capability,
+          vendorUsed: updatedVendor.name,
           strategy,
           routingReason,
-          latencyMs:    execution.latencyMs,
-          cost:         updatedVendor.costPerRequest ?? 0,
-          success:      true,
-          timestamp:    new Date()
+          latencyMs: execution.latencyMs,
+          cost: updatedVendor.costPerRequest ?? 0,
+          success: true,
+          timestamp: new Date()
         }),
         appendRequestLog({
           requestId,
-          capability:   request.capability,
-          payload:      request.payload,
+          capability: request.capability,
+          payload: request.payload,
           requirements: request.requirements ?? {},
-          vendorUsed:   updatedVendor.name,
+          vendorUsed: updatedVendor.name,
           strategy,
-          latencyMs:    execution.latencyMs,
-          status:       "SUCCESS",
-          timestamp:    new Date()
+          latencyMs: execution.latencyMs,
+          status: "SUCCESS",
+          timestamp: new Date()
         })
       ]);
 
@@ -396,44 +396,44 @@ export async function routeRequest(request) {
     await Promise.all([
       appendRoutingLog({
         requestId,
-        capability:   request.capability,
-        vendorUsed:   updatedVendor.name,
+        capability: request.capability,
+        vendorUsed: updatedVendor.name,
         strategy,
-        routingReason:fallbackReason,
-        latencyMs:    execution.latencyMs,
-        cost:         updatedVendor.costPerRequest ?? 0,
-        success:      false,
-        timestamp:    new Date()
+        routingReason: fallbackReason,
+        latencyMs: execution.latencyMs,
+        cost: updatedVendor.costPerRequest ?? 0,
+        success: false,
+        timestamp: new Date()
       }),
       appendRequestLog({
         requestId,
-        capability:   request.capability,
-        payload:      request.payload,
+        capability: request.capability,
+        payload: request.payload,
         requirements: request.requirements ?? {},
-        vendorUsed:   updatedVendor.name,
+        vendorUsed: updatedVendor.name,
         strategy,
-        latencyMs:    execution.latencyMs,
-        status:       "FAILED",
-        reason:       execution.failureReason,
-        timestamp:    new Date()
+        latencyMs: execution.latencyMs,
+        status: "FAILED",
+        reason: execution.failureReason,
+        timestamp: new Date()
       })
     ]);
   }
 
   await appendRequestLog({
     requestId,
-    capability:   request.capability,
-    payload:      request.payload,
+    capability: request.capability,
+    payload: request.payload,
     requirements: request.requirements ?? {},
-    timestamp:    new Date(),
-    status:       "FAILED",
-    reason:       "All candidate vendors failed or timed out"
+    timestamp: new Date(),
+    status: "FAILED",
+    reason: "All candidate vendors failed or timed out"
   });
 
   return {
-    status:       "FAILED",
-    vendorUsed:   null,
-    routingReason:"All candidate vendors failed or timed out",
-    error:        "all vendor attempts failed"
+    status: "FAILED",
+    vendorUsed: null,
+    routingReason: "All candidate vendors failed or timed out",
+    error: "all vendor attempts failed"
   };
 }

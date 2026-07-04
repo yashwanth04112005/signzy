@@ -92,7 +92,7 @@ The database is seeded with 3 default vendors on first run. Their initial config
   "name": "VendorA",
   "capability": "PAN_VERIFICATION",
   "weight": 70,
-  "costPerRequest": 1.5,
+  "costPerRequest": 150,
   "timeoutMs": 2000,
   "rateLimitPerMinute": 100,
   "priority": 1,
@@ -110,7 +110,7 @@ The database is seeded with 3 default vendors on first run. Their initial config
   "name": "VendorB",
   "capability": "PAN_VERIFICATION",
   "weight": 30,
-  "costPerRequest": 1.2,
+  "costPerRequest": 120,
   "timeoutMs": 3000,
   "rateLimitPerMinute": 50,
   "priority": 2,
@@ -128,7 +128,7 @@ The database is seeded with 3 default vendors on first run. Their initial config
   "name": "VendorC",
   "capability": "PAN_VERIFICATION",
   "weight": 50,
-  "costPerRequest": 1.1,
+  "costPerRequest": 110,
   "timeoutMs": 2500,
   "rateLimitPerMinute": 80,
   "priority": 3,
@@ -308,14 +308,14 @@ curl -X POST http://localhost:3000/route \
 ```json
 {
   "status": "SUCCESS",
-  "vendorUsed": "VendorB",
-  "routingReason": "VendorB was selected because it had the lowest cost per request ($1.2) among eligible vendors.",
-  "latencyMs": 850,
-  "cost": 1.2,
+  "vendorUsed": "VendorC",
+  "routingReason": "VendorC was selected for lowest cost (₹110).",
+  "latencyMs": 1024,
+  "cost": 110,
   "response": {
     "panStatus": "VALID",
     "nameMatch": true,
-    "referenceId": "..."
+    "referenceId": "f7a30b7a-8fbb-4e98-b80c-c6cfd88d227b"
   }
 }
 ```

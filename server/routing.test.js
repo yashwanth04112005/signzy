@@ -23,7 +23,7 @@ function makeVendor(overrides = {}) {
     enabled: true,
     weight: 50,
     priority: 1,
-    costPerRequest: 1.0,
+    costPerRequest: 100.0,
     timeoutMs: 2000,
     rateLimitPerMinute: 100,
     baseLatencyMs: 500,
@@ -83,7 +83,7 @@ function vendorMeetsRequirements(vendor, request, metricsView) {
 function normalizedScore(metricsView) {
   const latencyScore = 100 - clamp((metricsView.averageLatencyMs ?? 0) / 20, 0, 100);
   const successScore = metricsView.successRate ?? 0;
-  const costScore = 100 - clamp((metricsView.costPerRequest ?? 1) * 10, 0, 100);
+  const costScore = 100 - clamp((metricsView.costPerRequest ?? 100) / 2, 0, 100);
   const availabilityScore = metricsView.enabled === false ? 0 : 100;
   return latencyScore * 0.4 + successScore * 0.3 + costScore * 0.2 + availabilityScore * 0.1;
 }
@@ -209,8 +209,8 @@ describe("vendorMeetsRequirements", () => {
 
 describe("Strategy selection — compareByStrategy", () => {
   it("lowest-cost selects cheaper vendor first", () => {
-    const cheap = makeVendor({ costPerRequest: 0.5 });
-    const expensive = makeVendor({ costPerRequest: 2.0 });
+    const cheap = makeVendor({ costPerRequest: 50.0 });
+    const expensive = makeVendor({ costPerRequest: 200.0 });
     const order = compareByStrategy("lowest-cost", cheap, expensive);
     assert.ok(order < 0, "cheap should sort before expensive");
   });
