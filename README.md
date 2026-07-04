@@ -1,6 +1,6 @@
 # Intelligent Vendor Routing Platform
 
-A MERN-style intelligent vendor routing platform built for the Signzy SDE internship assignment. The platform exposes one unified API to the client and silently routes each request to the most suitable vendor based on configurable routing rules and live performance signals, persisted via MongoDB.
+A MERN-style intelligent vendor routing platform that exposes one unified API to the client and silently routes each request to the most suitable vendor based on configurable routing rules and live performance signals, persisted via MongoDB.
 
 ---
 
