@@ -1,0 +1,42 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# Production build outputs
+dist/
+build/
+out/
+
+# Local env configs and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.enc
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / IDE settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

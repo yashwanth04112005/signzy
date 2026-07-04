@@ -1,0 +1,27 @@
+{
+  "name": "signzy-vendor-router",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MERN-style intelligent vendor routing platform for the Signzy SDE internship assignment.",
+  "workspaces": [
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently \"node --watch server/index.js\" \"npm run dev --workspace client\"",
+    "server": "node server/index.js",
+    "client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "start": "node server/index.js",
+    "test": "node --test server/routing.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "mongoose": "^8.17.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
